@@ -1,13 +1,15 @@
 mod config;
-mod observability;
+mod telemetry;
+mod error;
 
 use anyhow::Result;
 use tracing::info;
 use config::GatewayConfig;
+use error::AppError;
 
 fn main() -> Result<()> {
     let config = GatewayConfig::load()?;
-    observability::telemetry::init_tracing(&config)?;
+    telemetry::init_tracing(&config)?;
 
     info!(
         app_name = %config.app_name,
@@ -17,5 +19,8 @@ fn main() -> Result<()> {
         redis_url = %config.redis_url,
         "api gateway configuration loaded"
     );
+
+    let _example_error = AppError::Internal("example");
+
     Ok(())
 }

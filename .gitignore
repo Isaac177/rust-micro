@@ -1,7 +1,7 @@
 /target
-.env
-.env.local
-.env.production
-services/*/.env
-services/*/.env.local
-services/*/.env.production
+#.env
+#.env.local
+#.env.production
+#services/*/.env
+#services/*/.env.local
+#services/*/.env.production

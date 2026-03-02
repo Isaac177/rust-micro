@@ -9,7 +9,7 @@ docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
 ```
 
 All Rust application services (`api-gateway`, `user-service`, `news-service`)
-run locally with Cargo and connect to Dockerized NATS/PostgreSQL.
+run locally with Cargo and connect to Dockerized NATS, Redis, and PostgreSQL.
 
 ## Production-Oriented Baseline
 

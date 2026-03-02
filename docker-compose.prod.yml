@@ -11,6 +11,20 @@ services:
       retries: 10
     restart: always
 
+  redis:
+    image: ${REDIS_IMAGE:-redis:7-alpine}
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: always
+
   user-db:
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     environment:
@@ -42,5 +56,6 @@ services:
     restart: always
 
 volumes:
+  redis-data:
   user-db-data:
   news-db-data:

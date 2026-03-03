@@ -1,7 +1,7 @@
 mod app;
 mod config;
 mod error;
-mod handlers;
+mod routes;
 mod telemetry;
 
 use std::{net::SocketAddr, sync::Arc};
@@ -13,7 +13,7 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = GatewayConfig::load()?;
+    let config = Arc::new(GatewayConfig::load()?);
     telemetry::init_tracing(&config)?;
 
     let addr: SocketAddr = config
@@ -21,8 +21,7 @@ async fn main() -> Result<()> {
         .parse()
         .with_context(|| format!("invalid HTTP_BIND_ADDR: {}", config.http_bind_addr))?;
 
-
-    let state = AppState::new(Arc::new(config));
+    let state = AppState::build(config.clone()).await?;
     let app = build_router(state);
 
     info!(

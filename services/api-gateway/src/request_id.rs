@@ -6,7 +6,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-const X_REQUEST_ID: &str = "x-request_id";
+const X_REQUEST_ID: &str = "x-request-id";
 
 #[derive(Clone, Debug)]
 pub struct RequestId(String);

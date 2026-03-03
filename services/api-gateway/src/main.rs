@@ -4,6 +4,7 @@ mod error;
 mod routes;
 mod telemetry;
 mod request_id;
+mod cors;
 
 use std::{net::SocketAddr, sync::Arc};
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use axum::{middleware, Router};
 
-use crate::{config::GatewayConfig, request_id, routes};
+use crate::{config::GatewayConfig, cors, request_id, routes};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -31,6 +31,7 @@ impl AppState {
 
 pub fn build_router(state: AppState) -> Router {
     routes::router()
+        .layer(cors::build_cors())
         .layer(middleware::from_fn(request_id::set_request_id))
         .with_state(state)
 }

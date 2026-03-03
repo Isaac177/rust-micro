@@ -1,15 +1,29 @@
+mod app;
 mod config;
-mod telemetry;
 mod error;
+mod handlers;
+mod telemetry;
 
-use anyhow::Result;
-use tracing::info;
+use std::{net::SocketAddr, sync::Arc};
+
+use anyhow::{Context, Result};
+use app::{build_router, AppState};
 use config::GatewayConfig;
-use error::AppError;
+use tracing::info;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let config = GatewayConfig::load()?;
     telemetry::init_tracing(&config)?;
+
+    let addr: SocketAddr = config
+        .http_bind_addr
+        .parse()
+        .with_context(|| format!("invalid HTTP_BIND_ADDR: {}", config.http_bind_addr))?;
+
+
+    let state = AppState::new(Arc::new(config));
+    let app = build_router(state);
 
     info!(
         app_name = %config.app_name,
@@ -17,10 +31,16 @@ fn main() -> Result<()> {
         http_bind_addr = %config.http_bind_addr,
         nats_url = %config.nats_url,
         redis_url = %config.redis_url,
-        "api gateway configuration loaded"
+        "starting api gateway"
     );
 
-    let _example_error = AppError::Internal("example");
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .context("failed to bind TCP listener")?;
+
+    axum::serve(listener, app)
+        .await
+        .context("axum server exited unexpectedly")?;
 
     Ok(())
 }

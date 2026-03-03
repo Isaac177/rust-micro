@@ -3,7 +3,8 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use axum::{middleware, Router};
 
-use crate::{config::GatewayConfig, cors, request_id, routes};
+use crate::{config::GatewayConfig, routes};
+use crate::middleware::{cors, request_id};
 
 #[derive(Clone)]
 pub struct AppState {

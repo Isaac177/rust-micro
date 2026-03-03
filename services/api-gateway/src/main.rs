@@ -3,8 +3,7 @@ mod config;
 mod error;
 mod routes;
 mod telemetry;
-mod request_id;
-mod cors;
+mod middleware;
 
 use std::{net::SocketAddr, sync::Arc};
 

@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use axum::Router;
+use axum::{middleware, Router};
 
-use crate::{config::GatewayConfig, routes};
+use crate::{config::GatewayConfig, request_id, routes};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -30,5 +30,7 @@ impl AppState {
 }
 
 pub fn build_router(state: AppState) -> Router {
-    routes::router().with_state(state)
+    routes::router()
+        .layer(middleware::from_fn(request_id::set_request_id))
+        .with_state(state)
 }

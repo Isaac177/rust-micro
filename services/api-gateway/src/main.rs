@@ -3,6 +3,7 @@ mod config;
 mod error;
 mod routes;
 mod telemetry;
+mod request_id;
 
 use std::{net::SocketAddr, sync::Arc};
 

@@ -1,6 +1,7 @@
 mod app;
 mod config;
 mod error;
+mod nats;
 mod routes;
 mod telemetry;
 mod middleware;

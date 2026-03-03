@@ -2412,6 +2412,13 @@ dependencies = [
 name = "user-service"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "async-nats",
+ "contracts",
+ "dotenvy",
+ "futures",
+ "serde_json",
+ "sqlx",
  "tokio",
 ]
 

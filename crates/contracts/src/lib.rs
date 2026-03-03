@@ -35,3 +35,34 @@ pub mod news {
         }
     }
 }
+
+pub mod users {
+    pub mod list_users {
+        use serde::{Deserialize, Serialize};
+
+        pub const SUBJECT: &str = "users.list";
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub struct Request {
+            pub limit: i64,
+            pub offset: i64,
+        }
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub struct Response {
+            pub users: Vec<User>,
+            pub limit: i64,
+            pub offset: i64,
+        }
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub struct User {
+            pub id: String,
+            pub email: String,
+            pub display_name: String,
+            pub status: String,
+            pub created_at: String,
+            pub updated_at: String,
+        }
+    }
+}

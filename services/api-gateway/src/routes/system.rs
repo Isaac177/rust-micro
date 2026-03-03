@@ -1,6 +1,9 @@
-use axum::{extract::State, routing::get, Router};
+use axum::{extract::State, routing::get, Json, Router};
 
-use crate::{app::AppState, error::AppError};
+use crate::{
+    app::AppState,
+    error::{AppError, StatusResponse},
+};
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -8,12 +11,15 @@ pub fn router() -> Router<AppState> {
         .route("/ready", get(readiness_check))
 }
 
-async fn health_check(State(state): State<AppState>) -> Result<&'static str, AppError> {
+async fn health_check(State(state): State<AppState>) -> Result<Json<StatusResponse>, AppError> {
     let _ = &state.config.app_name;
-    Ok("OK")
+
+    Ok(Json(StatusResponse { status: "ok" }))
 }
 
-async fn readiness_check(State(state): State<AppState>) -> Result<&'static str, AppError> {
+async fn readiness_check(
+    State(state): State<AppState>,
+) -> Result<Json<StatusResponse>, AppError> {
     state
         .nats_client
         .flush()
@@ -37,5 +43,5 @@ async fn readiness_check(State(state): State<AppState>) -> Result<&'static str, 
         ));
     }
 
-    Ok("READY")
+    Ok(Json(StatusResponse { status: "ready" }))
 }

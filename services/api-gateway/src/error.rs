@@ -1,6 +1,6 @@
-use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use serde::Serialize;
 
 #[derive(Debug)]
@@ -71,4 +71,9 @@ pub struct ErrorResponse {
 pub struct ErrorBody {
     pub code: &'static str,
     pub message: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+pub struct StatusResponse {
+    pub status: &'static str,
 }

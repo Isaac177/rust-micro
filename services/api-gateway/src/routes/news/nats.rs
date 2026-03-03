@@ -1,16 +1,22 @@
 use std::time::Duration;
 
+use contracts::news::list_articles::{
+    Request as ListArticlesRequest,
+    Response as ListArticlesResponse,
+    SUBJECT as LIST_ARTICLES_SUBJECT,
+};
 use tokio::time::timeout;
 
 use crate::{app::AppState, error::AppError};
 
-use super::dto::{ListArticlesRequest, ListArticlesResponse};
-
-const LIST_ARTICLES_SUBJECT: &str = "news.articles.list";
 const NEWS_REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
 
-pub async fn request_list_articles(state: &AppState) -> Result<ListArticlesResponse, AppError> {
-    let payload = serde_json::to_vec(&ListArticlesRequest {})
+pub async fn request_list_articles(
+    state: &AppState,
+    limit: i64,
+    offset: i64,
+) -> Result<ListArticlesResponse, AppError> {
+    let payload = serde_json::to_vec(&ListArticlesRequest { limit, offset })
         .map_err(|_| AppError::Internal("can't serialize list articles request"))?;
 
     let message = timeout(

@@ -27,10 +27,10 @@ pub async fn serve(client: Client, pool: PgPool) -> Result<()> {
 }
 
 async fn handle_list_articles(client: &Client, pool: &PgPool, message: Message) -> Result<()> {
-    let _request: ListArticlesRequest = serde_json::from_slice(message.payload.as_ref())
+    let request: ListArticlesRequest = serde_json::from_slice(message.payload.as_ref())
         .context("failed to deserialize list articles request")?;
 
-    let response = repository::list_articles(pool)
+    let response = repository::list_articles(pool, request.limit, request.offset)
         .await
         .context("failed to load articles from database")?;
 

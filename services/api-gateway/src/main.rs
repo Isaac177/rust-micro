@@ -1,6 +1,7 @@
 mod app;
 mod config;
 mod error;
+mod jwt;
 mod nats;
 mod routes;
 mod telemetry;

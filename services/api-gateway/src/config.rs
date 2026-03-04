@@ -13,6 +13,8 @@ pub struct GatewayConfig {
     pub http_bind_addr: String,
     pub nats_url: String,
     pub redis_url: String,
+    pub jwt_secret: String,
+    pub jwt_issuer: String,
 }
 
 impl GatewayConfig {
@@ -27,8 +29,10 @@ impl GatewayConfig {
         let http_bind_addr = required_var("HTTP_BIND_ADDR")?;
         let nats_url = required_var("NATS_URL")?;
         let redis_url = required_var("REDIS_URL")?;
+        let jwt_secret = required_var("JWT_SECRET")?;
+        let jwt_issuer = required_var("JWT_ISSUER")?;
 
-        Ok(Self { app_name, app_env, log_level, http_bind_addr, nats_url, redis_url })
+        Ok(Self { app_name, app_env, log_level, http_bind_addr, nats_url, redis_url, jwt_secret, jwt_issuer })
     }
 }
 

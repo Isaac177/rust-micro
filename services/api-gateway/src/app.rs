@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use axum::{middleware, Router};
 
 use crate::{config::GatewayConfig, routes};
-use crate::middleware::{cors, request_id};
+use crate::middleware::{auth, cors, request_id};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -31,7 +31,17 @@ impl AppState {
 }
 
 pub fn build_router(state: AppState) -> Router {
-    routes::router()
+    let public = Router::new()
+        .merge(routes::system::router())
+        .merge(routes::auth::router());
+
+    let protected = Router::new()
+        .merge(routes::news::router())
+        .merge(routes::users::router())
+        .route_layer(middleware::from_fn_with_state(state.clone(), auth::require_auth));
+
+    public
+        .merge(protected)
         .layer(cors::build_cors())
         .layer(middleware::from_fn(request_id::set_request_id))
         .with_state(state)

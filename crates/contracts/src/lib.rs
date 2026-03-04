@@ -1,3 +1,14 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "status")]
+pub enum NatsResponse<T> {
+    #[serde(rename = "ok")]
+    Ok { data: T },
+    #[serde(rename = "error")]
+    Error { code: String, message: String },
+}
+
 pub mod news {
     pub mod list_articles {
         use serde::{Deserialize, Serialize};
@@ -63,6 +74,45 @@ pub mod users {
             pub status: String,
             pub created_at: String,
             pub updated_at: String,
+        }
+    }
+
+    pub mod register {
+        use serde::{Deserialize, Serialize};
+
+        pub const SUBJECT: &str = "users.register";
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub struct Request {
+            pub email: String,
+            pub password: String,
+            pub display_name: String,
+        }
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub struct Response {
+            pub id: String,
+            pub email: String,
+            pub display_name: String,
+        }
+    }
+
+    pub mod authenticate {
+        use serde::{Deserialize, Serialize};
+
+        pub const SUBJECT: &str = "users.authenticate";
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub struct Request {
+            pub email: String,
+            pub password: String,
+        }
+
+        #[derive(Debug, Serialize, Deserialize)]
+        pub struct Response {
+            pub id: String,
+            pub email: String,
+            pub display_name: String,
         }
     }
 }

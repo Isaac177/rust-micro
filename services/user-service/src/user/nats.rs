@@ -7,6 +7,10 @@ use contracts::{
             Request as AuthenticateRequest, Response as AuthenticateResponse,
             SUBJECT as AUTHENTICATE_SUBJECT,
         },
+        get_user::{
+            Request as GetUserRequest, Response as GetUserResponse,
+            SUBJECT as GET_USER_SUBJECT,
+        },
         list_users::{Request as ListUsersRequest, SUBJECT as LIST_USERS_SUBJECT},
         register::{
             Request as RegisterRequest, Response as RegisterResponse,
@@ -36,19 +40,26 @@ pub async fn serve(client: Client, pool: PgPool) -> Result<()> {
         .await
         .with_context(|| format!("failed to subscribe to {AUTHENTICATE_SUBJECT}"))?;
 
-    println!("user-service listening on subjects: {LIST_USERS_SUBJECT}, {REGISTER_SUBJECT}, {AUTHENTICATE_SUBJECT}");
+    let get_user_sub = client
+        .subscribe(GET_USER_SUBJECT.to_string())
+        .await
+        .with_context(|| format!("failed to subscribe to {GET_USER_SUBJECT}"))?;
+
+    println!("user-service listening on subjects: {LIST_USERS_SUBJECT}, {REGISTER_SUBJECT}, {AUTHENTICATE_SUBJECT}, {GET_USER_SUBJECT}");
 
     let list_stream = list_sub.map(|m| ("list", m));
     let register_stream = register_sub.map(|m| ("register", m));
     let auth_stream = auth_sub.map(|m| ("auth", m));
+    let get_user_stream = get_user_sub.map(|m| ("get_user", m));
 
-    let mut combined = select(select(list_stream, register_stream), auth_stream);
+    let mut combined = select(select(list_stream, register_stream), select(auth_stream, get_user_stream));
 
     while let Some((kind, message)) = combined.next().await {
         let result = match kind {
             "list" => handle_list_users(&client, &pool, message).await,
             "register" => handle_register(&client, &pool, message).await,
             "auth" => handle_authenticate(&client, &pool, message).await,
+            "get_user" => handle_get_user(&client, &pool, message).await,
             _ => Ok(()),
         };
         if let Err(error) = result {
@@ -166,6 +177,29 @@ async fn handle_authenticate(client: &Client, pool: &PgPool, message: Message) -
             id: user.id,
             email: user.email,
             display_name: user.display_name,
+        },
+    };
+
+    reply(client, &message, &resp).await
+}
+
+async fn handle_get_user(client: &Client, pool: &PgPool, message: Message) -> Result<()> {
+    let request: GetUserRequest = serde_json::from_slice(message.payload.as_ref())
+        .context("failed to deserialize get user request")?;
+
+    let user = repository::find_by_id(pool, &request.user_id).await?;
+
+    let resp: NatsResponse<GetUserResponse> = match user {
+        Some(u) => NatsResponse::Ok {
+            data: GetUserResponse {
+                id: u.id,
+                email: u.email,
+                display_name: u.display_name,
+            },
+        },
+        None => NatsResponse::Error {
+            code: "not_found".into(),
+            message: "User not found".into(),
         },
     };
 

@@ -85,6 +85,32 @@ pub async fn create_user(
     })
 }
 
+pub async fn find_by_id(pool: &PgPool, user_id: &str) -> Result<Option<UserRow>> {
+    let row = sqlx::query(
+        r#"
+        SELECT
+            id::text AS id,
+            email,
+            display_name,
+            password_hash,
+            status::text AS status
+        FROM users
+        WHERE id::text = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|r| UserRow {
+        id: r.get("id"),
+        email: r.get("email"),
+        display_name: r.get("display_name"),
+        password_hash: r.get("password_hash"),
+        status: r.get("status"),
+    }))
+}
+
 pub async fn find_user_by_email(pool: &PgPool, email: &str) -> Result<Option<UserRow>> {
     let row = sqlx::query(
         r#"

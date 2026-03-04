@@ -1,9 +1,12 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     routing::get,
     Json, Router,
 };
-use contracts::news::list_articles::Response as ListArticlesResponse;
+use contracts::news::{
+    get_article::Response as GetArticleResponse,
+    list_articles::Response as ListArticlesResponse,
+};
 use serde::Deserialize;
 
 use crate::{app::AppState, error::AppError};
@@ -20,7 +23,9 @@ struct ListArticlesQuery {
 }
 
 pub fn router() -> Router<AppState> {
-    Router::new().route("/api/v1/news/articles", get(list_articles))
+    Router::new()
+        .route("/api/v1/news/articles", get(list_articles))
+        .route("/api/v1/news/articles/{id}", get(get_article))
 }
 
 async fn list_articles(
@@ -38,5 +43,13 @@ async fn list_articles(
 
     let response = nats::request_list_articles(&state, limit, offset).await?;
 
+    Ok(Json(response))
+}
+
+async fn get_article(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<GetArticleResponse>, AppError> {
+    let response = nats::request_get_article(&state, id).await?;
     Ok(Json(response))
 }

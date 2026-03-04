@@ -1,5 +1,6 @@
+mod handlers;
 mod nats;
-mod repository;
 mod password;
+mod repository;
 
 pub use nats::serve;

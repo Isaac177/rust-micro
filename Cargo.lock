@@ -1141,6 +1141,7 @@ dependencies = [
  "contracts",
  "dotenvy",
  "futures",
+ "serde",
  "serde_json",
  "sqlx",
  "tokio",

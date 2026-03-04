@@ -9,6 +9,7 @@ async-nats = "0.39"
 contracts = { path = "../../crates/contracts" }
 dotenvy = "0.15"
 futures = "0.3"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-rustls", "migrate"] }
 tokio.workspace = true

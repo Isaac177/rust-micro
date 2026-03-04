@@ -1,171 +1,143 @@
-I’m building a professional Rust microservices backend manually to learn senior-level Rust backend engineering. Continue from the current state and keep the same teaching style and constraints.
+# rust-micro
 
-Project goals
-- Rust microservices architecture
-- Services:
-    - api-gateway
-    - user-service
-    - news-service
-- Communication:
-    - api-gateway is the only public HTTP entrypoint
-    - internal service-to-service communication uses NATS
-    - api-gateway transforms HTTP requests into NATS request/reply messages
-    - services also publish/consume domain events through NATS
-- Data ownership:
-    - user-service owns user data
-    - news-service owns news/article data
-- Cross-service data strategy:
-    - prefer async event-driven replication/projections for frequently needed data
-    - avoid unnecessary synchronous runtime coupling between services
-- Databases:
-    - PostgreSQL per service
-    - migrations required
-    - seed strategy required
-- Infra:
-    - Docker for infra only in dev
-    - Rust services run locally in dev
-    - production can containerize all app services later
-- Infra components currently intended:
-    - NATS
-    - Redis
-    - PostgreSQL for user-service
-    - PostgreSQL for news-service
+A microservices architecture built in Rust. Services communicate exclusively over NATS (request-reply). The API Gateway is the single entry point for all HTTP clients — no service is exposed directly.
 
-Engineering principles
-- start simple, structure for growth
-- domain-oriented modules
-- clear separation of transport, application, and persistence
-- fail fast on startup misconfiguration
-- readiness should verify real dependencies
-- explicit types and DTOs
-- maintainable code over clever code
-- production-minded organization
-- strong error handling
-- observability/logging
-- health/readiness checks
-- config via environment
-- scalable folder structure
+## Architecture
 
-Framework/ecosystem
-- Rust
-- Axum
-- Tokio
-- SQLx
-- PostgreSQL
-- NATS Rust client
-- Redis client for gateway rate limiting
+```
+Client
+  │
+  ▼
+api-gateway  (HTTP :8080)
+  │
+  │  NATS request-reply
+  ├──────────────────────▶  user-service
+  │                               │
+  │                               │  NATS request-reply
+  └──────────────────────▶  news-service ──────────────▶  user-service
+```
 
-How I want you to work with me
-- First inspect what I already have before proposing changes
-- Do not modify files unless I explicitly ask, except Cargo.toml updates are allowed when I ask to proceed to the next technical step
-- Tell me the next step only
-- Generate the next file or code snippet for me to type manually so I learn the syntax
-- After each step, explain the concepts behind what we wrote
-- Do not explain lines mechanically
-- Explain the Rust/software concepts first, then connect them to the code
-- Use and reference these docs when explaining concepts:
-    - https://doc.rust-lang.org/book/
-    - https://doc.rust-lang.org/rust-by-example/
-    - https://google.github.io/comprehensive-rust/
-- When needed, also use official docs for Axum, SQLx, Tokio, and NATS
-- Teach me like I’m trying to become a strong Rust backend engineer
-- Keep explanations practical and tied to what we are building
+### Key design decisions
 
-Current repo shape
-- Cargo workspace
-- services:
-    - services/api-gateway
-    - services/user-service
-    - services/news-service
-- shared crates:
-    - crates/common
-    - crates/contracts
-- infra files at repo root:
-    - docker-compose.dev.yml
-    - docker-compose.prod.yml
-- env files:
-    - root `.env.dev` for dev infra
-    - root `.env` for prod infra
-    - service-specific env files for api-gateway/user-service/news-service
+- **Gateway is the only HTTP server.** All other services are internal and speak NATS only.
+- **Service-to-service communication is direct over NATS.** When news-service needs author data it publishes to `users.get` itself — it does not go back through the gateway.
+- **Gateway mints JWTs.** Auth is a transport concern. user-service owns credentials and password hashing (argon2), gateway owns token issuance (access + refresh, stateless HS256).
+- **`NatsResponse<T>`** is a typed envelope used for operations that can fail with domain errors (register, authenticate, get). List operations return their response type directly.
+- **No service discovery.** Services know each other only by NATS subject strings defined in the shared `contracts` crate.
 
-Current infra status
-- infra is already live
-- Docker Compose files are at repo root, not under deploy
-- dev compose is infra only:
-    - NATS
-    - Redis
-    - user Postgres
-    - news Postgres
-- app services are not containerized in dev
-- Redis has been added for future rate limiting
-- local Postgres host ports were changed to avoid conflicts:
-    - user-db -> 6433
-    - news-db -> 6434
+## Workspace layout
 
-Important architectural decision already made
-- No API gateway debates: api-gateway is required
-- api-gateway is the only public HTTP service
-- user-service and news-service are internal and should primarily use NATS
-- NATS is used for request/reply and pub/sub events
-- For frequent cross-service reads, prefer event-driven projection/replication over live lookups
+```
+rust-micro/
+├── crates/
+│   ├── contracts/   # Shared NATS subjects, request/response types (serde)
+│   └── common/      # Shared utilities (unused for now)
+└── services/
+    ├── api-gateway/  # HTTP server, JWT auth, NATS client, route handlers
+    ├── user-service/ # User registration, authentication, password hashing
+    └── news-service/ # Articles, enriched with author data from user-service
+```
 
-API gateway professional feature plan
-We explicitly want the api-gateway to be production-minded and include these concerns over time:
-1. config
-2. tracing/logger
-3. error handling
-4. request ID middleware
-5. CORS
-6. auth skeleton
-7. authorization mapping / permissions
-8. Redis-backed rate limiting
-9. metrics
-10. health and readiness
-    Also important later:
-- security headers
-- request size limits
-- timeout policy
-- proxy/IP trust rules
-- normalized error responses
-- resilience rules
-- structured logs
-- service communication controls
-- graceful shutdown
+## Services
 
-Current api-gateway code status
-We have started building api-gateway first.
+### api-gateway
 
-Current files are flat in `services/api-gateway/src/`:
-- `main.rs`
-- `config.rs`
-- `telemetry.rs`
-- `error.rs`
+- **HTTP framework:** Axum 0.8
+- **Middleware:** CORS, request ID injection, `require_auth` (JWT Bearer validation)
+- **Public routes:** `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `GET /health`, `GET /ready`
+- **Protected routes** (require `Authorization: Bearer <access_token>`): `GET /api/v1/users`, `GET /api/v1/news/articles`, `GET /api/v1/news/articles/{id}`
+- **JWT:** HS256, access token (15 min), refresh token (7 days). Claims include `sub`, `email`, `display_name`, `token_type`.
+- **Readiness check** verifies live NATS and Redis connections.
 
-Current implemented pieces
-1. Config loading exists
-- typed `GatewayConfig`
-- `AppEnv` enum
-- env-based loading
-- fail-fast required var loading
-- local `.env.dev` loading
+### user-service
 
-2. Tracing/logger exists
-- tracing initialized from `LOG_LEVEL`
+- **Database:** PostgreSQL (via sqlx, migrations run on startup)
+- **Password hashing:** argon2 (Argon2id default params)
+- **NATS subjects:**
+  | Subject | Description |
+  |---|---|
+  | `users.list` | Paginated user list |
+  | `users.register` | Create user, returns `NatsResponse` (error: `email_taken`) |
+  | `users.authenticate` | Verify credentials, returns `NatsResponse` (error: `invalid_credentials`, `account_disabled`) |
+  | `users.get` | Fetch single user by ID, returns `NatsResponse` (error: `not_found`) |
 
-3. Error type exists
-- `AppError` enum
-- maps to HTTP status codes
-- maps to stable error codes
-- implements `IntoResponse`
+### news-service
 
-Important note
-- I flattened single-file modules intentionally
-- if a module is only one file, keep it as `config.rs`, `telemetry.rs`, `error.rs`
-- do not force a folder + `mod.rs` unless there is a real need
+- **Database:** PostgreSQL (via sqlx, migrations run on startup)
+- **NATS subjects:**
+  | Subject | Description |
+  |---|---|
+  | `news.articles.list` | Paginated published articles |
+  | `news.articles.get` | Single article enriched with author details (calls `users.get` internally) |
 
-What should be implemented next
-The next step is:
-- make `api-gateway` a real running Axum HTTP service
-- start the server
-- expose `GET /health`
-- keep the process alive
+## Internal file structure per service
+
+Each service follows the same three-layer pattern:
+
+```
+src/<domain>/
+  mod.rs        # module declarations
+  nats.rs       # subscribe, dispatch, reply — no business logic
+  handlers.rs   # business logic — deserializes payload, calls repository, returns serialized bytes
+  repository.rs # SQL queries only
+```
+
+`nats.rs` contains only `serve()` (subscription loop + match dispatch) and `reply()` (publish helper). Handlers own deserialization, logic, and serialization.
+
+## Shared contracts crate
+
+All NATS subjects and message types live in `crates/contracts`. Both gateway and services import from here. Adding a new inter-service call means:
+
+1. Add subject + Request/Response structs to `contracts`
+2. Add handler in the producer service
+3. Add one line to the NATS dispatch match
+4. Call from the consumer
+
+## Infrastructure
+
+| Service | Port |
+|---|---|
+| api-gateway (HTTP) | 8080 |
+| NATS | 4222 |
+| Redis | 6379 |
+| user-service DB (Postgres) | 6433 |
+| news-service DB (Postgres) | 6434 |
+
+## Getting started
+
+```bash
+# start infrastructure
+docker compose up -d
+
+# run migrations
+export DATABASE_URL=postgres://user_service:user_service_dev@127.0.0.1:6433/user_service
+sqlx migrate run --source services/user-service/migrations
+
+# run services (in separate terminals)
+cargo run -p user-service
+cargo run -p news-service
+cargo run -p api-gateway
+```
+
+## Auth flow
+
+```bash
+# register — returns access + refresh tokens
+curl -X POST localhost:8080/api/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@example.com","password":"password123","display_name":"Alice"}'
+
+# login
+curl -X POST localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@example.com","password":"password123"}'
+
+# refresh
+curl -X POST localhost:8080/api/v1/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"refresh_token":"<token>"}'
+
+# authenticated request
+curl localhost:8080/api/v1/users \
+  -H 'Authorization: Bearer <access_token>'
+```
